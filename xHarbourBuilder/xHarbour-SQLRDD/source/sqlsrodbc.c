@@ -193,8 +193,14 @@ HB_FUNC( SR_DRIVERC )
    BYTE  bBuffer1[ 1024 ] = {0};
    SQLSMALLINT  wLen;
 
+   #if defined(HB_OS_WIN_32) || defined( HB_OS_WIN )
+      SQLHWND hWnd = GetDesktopWindow();
+   #else
+      SQLHWND hWnd = 0;
+   #endif
+
    RETCODE ret =  SQLDriverConnect( ( SQLHDBC ) hb_parptr( 1 ),
-                           GetDesktopWindow(),
+                           hWnd,
                            (SQLCHAR *) hb_parcx( 2 ), 
                            (SQLSMALLINT)strlen(hb_parcx(2)),
                            (SQLCHAR *  )bBuffer1, 
