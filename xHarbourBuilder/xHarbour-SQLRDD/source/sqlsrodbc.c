@@ -192,26 +192,16 @@ HB_FUNC( SR_DRIVERC )
 {
    BYTE  bBuffer1[ 1024 ] = {0};
    SQLSMALLINT  wLen;
-   #if defined(HB_OS_WIN_32) || defined( HB_OS_WIN )
-      RETCODE ret =  SQLDriverConnect( ( SQLHDBC ) hb_parptr( 1 ),
-                             GetDesktopWindow(),
-                             (SQLCHAR *) hb_parcx( 2 ), 
-                             (SQLSMALLINT)strlen(hb_parcx(2)),
-                             (SQLCHAR *  )bBuffer1, 
-                             (SQLSMALLINT)1024, 
-                             (SQLSMALLINT * )&wLen, 
-                             (SQLUSMALLINT)SQL_DRIVER_NOPROMPT ); // SQL_DRIVER_COMPLETE ) ;
-   #elif defined(HB_OS_UNIX)
-      RETCODE ret =  SQLDriverConnect( ( SQLHDBC ) hb_parptr( 1 ),
-                             0,
-                             (SQLCHAR *) hb_parcx( 2 ), 
-                             (SQLSMALLINT )strlen(hb_parcx(2)),
-                             (SQLCHAR * )bBuffer1, 
-                             (SQLSMALLINT )1024, 
-                             (SQLSMALLINT *)&wLen, 
-                             (SQLUSMALLINT)SQL_DRIVER_COMPLETE ) ;
 
-   #endif
+   RETCODE ret =  SQLDriverConnect( ( SQLHDBC ) hb_parptr( 1 ),
+                           GetDesktopWindow(),
+                           (SQLCHAR *) hb_parcx( 2 ), 
+                           (SQLSMALLINT)strlen(hb_parcx(2)),
+                           (SQLCHAR *  )bBuffer1, 
+                           (SQLSMALLINT)1024, 
+                           (SQLSMALLINT * )&wLen, 
+                           (SQLUSMALLINT)SQL_DRIVER_NOPROMPT );
+
    hb_storc( (char *) bBuffer1 , 3 );
    hb_retni( ret );
 }
@@ -1025,12 +1015,30 @@ HB_FUNC( SR_COLATTRIBUTE )
 HB_FUNC( SR_ERROR )
 {
    SQLTCHAR    bBuffer1[ 256 ]={0}, szErrorMsg[ 256 ]={0};
-   SQLINTEGER lError;
-   SQLSMALLINT wLen;
+   SQLINTEGER lError = 0;
+   SQLSMALLINT wLen = 0;
 
-   hb_retni( SQLError( ( SQLHENV  ) hb_parptr( 1 ), (  SQLHDBC  ) hb_parptr( 2 ),
+   SQLRETURN ret = SQLError( ( SQLHENV  ) hb_parptr( 1 ), (  SQLHDBC  ) hb_parptr( 2 ),
                        ( SQLHSTMT ) hb_parptr( 3 ), ( SQLTCHAR *)bBuffer1, ( SQLINTEGER * )&lError,
-                       ( SQLTCHAR *) szErrorMsg, ( SQLSMALLINT ) HB_SIZEOFARRAY( szErrorMsg ), ( SQLSMALLINT * )&wLen ) );
+                       ( SQLTCHAR *) szErrorMsg, ( SQLSMALLINT ) HB_SIZEOFARRAY( szErrorMsg ), ( SQLSMALLINT * )&wLen );
+
+   /* no record available: the driver manager does not fill the outputs */
+   if( ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO )
+   {
+      szErrorMsg[ 0 ] = 0;
+      wLen = 0;
+   }
+
+   if( wLen < 0 )
+   {
+      wLen = 0;
+   }
+   else if( wLen >= ( SQLSMALLINT ) HB_SIZEOFARRAY( szErrorMsg ) )
+   {
+      wLen = ( SQLSMALLINT ) HB_SIZEOFARRAY( szErrorMsg ) - 1; /* truncated message */
+   }
+
+   hb_retni( ret );
 
    hb_storc( (char *) bBuffer1, 4 );
    hb_stornl( lError, 5 );
